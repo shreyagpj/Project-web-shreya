@@ -1,0 +1,322 @@
+#include <stdio.h>
+#include <string.h>
+#include <limits.h>
+
+int MAX_N = 20;
+int NODES = 12;
+
+int gmat[20][20];
+
+int h1_vehcl = 1;
+int h2_vehcl = 1;
+int p1_vehcl = 1;
+int p2_vehcl = 1;
+int f1_vehcl = 1;
+int f2_vehcl = 1;
+
+char nodename[20][40] = {
+    "",
+    "Hospital 1",
+    "Hospital 2",
+    "Police Stn 1",
+    "Police Stn 2",
+    "Fire Stn 1",
+    "Fire Stn 2",
+    "Market",
+    "Park",
+    "Area A",
+    "Area B",
+    "Area C",
+    "Area D"
+};
+
+struct Inc {
+    int node;
+    int p;           
+    char note[60];
+};
+
+struct Inc heap[100];
+int heap_size = 0;
+
+// swap entries
+void heapSwap(struct Inc *a, struct Inc *b) {
+    struct Inc t = *a;
+    *a = *b;
+    *b = t;
+}
+
+// insert into heap
+void heapPush(struct Inc x) {
+    int i = heap_size++;
+    heap[i] = x;
+    while (i > 0) {
+        int p = (i - 1) / 2;
+        if (heap[p].p >= heap[i].p) break;
+        heapSwap(&heap[p], &heap[i]);
+        i = p;
+    }
+}
+
+// remove from heap
+struct Inc heapPop() {
+    struct Inc top = heap[0];
+    heap[0] = heap[--heap_size];
+    int i = 0;
+    while (1) {
+        int l = 2*i + 1;
+        int r = 2*i + 2;
+        int largest = i;
+        if (l < heap_size && heap[l].p > heap[largest].p) largest = l;
+        if (r < heap_size && heap[r].p > heap[largest].p) largest = r;
+        if (largest == i) break;
+        heapSwap(&heap[i], &heap[largest]);
+        i = largest;
+    }
+    return top;
+}
+
+// shortest path
+void dijkstra(int src, int dist[]) {
+    int vis[20];
+    for (int i = 1; i <= NODES; i++) { dist[i] = INT_MAX; vis[i] = 0; }
+    dist[src] = 0;
+    for (int it = 1; it <= NODES; it++) {
+        int u = -1, best = INT_MAX;
+        for (int i = 1; i <= NODES; i++)
+            if (!vis[i] && dist[i] < best) { best = dist[i]; u = i; }
+        if (u == -1) break;
+        vis[u] = 1;
+        for (int v = 1; v <= NODES; v++) {
+            if (gmat[u][v] && dist[u] + gmat[u][v] < dist[v])
+                dist[v] = dist[u] + gmat[u][v];
+        }
+    }
+}
+
+// graph data
+void initGraph() {
+    int i, j;
+    for (i = 1; i <= NODES; i++)
+        for (j = 1; j <= NODES; j++)
+            gmat[i][j] = 0;
+
+    gmat[1][7] = 4; gmat[7][1] = 4;
+    gmat[1][9] = 6; gmat[9][1] = 6;
+
+    gmat[2][9] = 5; gmat[9][2] = 5;
+    gmat[2][11]= 7; gmat[11][2]= 7;
+
+    gmat[3][7] = 3; gmat[7][3] = 3;
+    gmat[3][8] = 5; gmat[8][3] = 5;
+    gmat[3][10]= 6; gmat[10][3]= 6;
+
+    gmat[4][10]= 4; gmat[10][4]= 4;
+    gmat[4][12]= 7; gmat[12][4]= 7;
+
+    gmat[5][8] = 4; gmat[8][5] = 4;
+    gmat[5][12]= 6; gmat[12][5]= 6;
+
+    gmat[6][8] = 3; gmat[8][6] = 3;
+    gmat[6][11]= 8; gmat[11][6]= 8;
+
+    gmat[7][8] = 2; gmat[8][7] = 2;
+    gmat[8][10]= 3; gmat[10][8]= 3;
+    gmat[9][11]= 4; gmat[11][9]= 4;
+    gmat[10][12]=5; gmat[12][10]=5;
+    gmat[11][12]=6; gmat[12][11]=6;
+}
+
+// print matrix
+void printGraph() {
+    printf("\nRoad connections:\n\n");
+
+    for (int i = 1; i <= NODES; i++) {
+        for (int j = i+1; j <= NODES; j++) {
+            if (gmat[i][j] > 0) {
+                printf("%s <-> %s = %d km\n",
+                       nodename[i], nodename[j], gmat[i][j]);
+            }
+        }
+    }
+}
+
+// print nodes
+void printNodes() {
+    printf("\nNodes list:\n");
+    for (int i = 1; i <= NODES; i++)
+        printf("%2d - %s\n", i, nodename[i]);
+}
+
+// show dist
+void displayDistances() {
+    int src;
+    printf("\nEnter source node (1-%d): ", NODES);
+    scanf("%d", &src);
+    if (src < 1 || src > NODES) return;
+
+    int dist[20];
+    dijkstra(src, dist);
+
+    printf("\nDistances from %d - %s:\n", src, nodename[src]);
+    for (int i = 1; i <= NODES; i++) {
+        if (dist[i] == INT_MAX) printf("%2d - %s : INF\n", i, nodename[i]);
+        else printf("%2d - %s : %d km\n", i, nodename[i], dist[i]);
+    }
+}
+
+// add incident
+void addIncident() {
+    struct Inc x;
+
+    printf("\nEnter incident node (1-%d): ", NODES);
+    scanf("%d", &x.node);
+
+    printf("Enter priority (5:Med+Fire 4:Med+Crime 3:Med 2:Fire 1:Crime): ");
+    scanf("%d", &x.p);
+
+    printf("Enter short note (no spaces): ");
+    scanf("%59s", x.note);
+
+    heapPush(x);
+    printf("Incident added\n");
+}
+
+// show incidents
+void showIncidents() {
+    if (heap_size == 0) {
+        printf("\nNo incidents\n");
+        return;
+    }
+    printf("\nPending incidents:\n");
+    for (int i = 0; i < heap_size; i++)
+        printf("%d. node=%d (%s), pri=%d, note=%s\n",
+               i+1, heap[i].node, nodename[heap[i].node],
+               heap[i].p, heap[i].note);
+}
+
+// choose nearest available
+int pickNearestStation(int dist[], int s1, int s2, int a1, int a2) {
+    int d1 = dist[s1], d2 = dist[s2];
+    if (a1 && a2) return (d1 <= d2 ? s1 : s2);
+    if (a1) return s1;
+    if (a2) return s2;
+    return -1;
+}
+
+// process incident
+void processIncident() {
+    if (heap_size == 0) {
+        printf("\nNo incidents to process\n");
+        return;
+    }
+
+    struct Inc cur = heapPop();
+    printf("\nProcessing incident at node %d (%s), priority=%d, note=%s\n",
+           cur.node, nodename[cur.node], cur.p, cur.note);
+
+    int dist[20];
+    dijkstra(cur.node, dist);
+
+    int station = -1; // selecting station
+
+    if (cur.p == 5) {
+        station = pickNearestStation(dist, 1, 2, h1_vehcl, h2_vehcl);
+        if (station == -1)
+            station = pickNearestStation(dist, 5, 6, f1_vehcl, f2_vehcl);
+    }
+    else if (cur.p == 4) {
+        station = pickNearestStation(dist, 1, 2, h1_vehcl, h2_vehcl);
+        if (station == -1)
+            station = pickNearestStation(dist, 3, 4, p1_vehcl, p2_vehcl);
+    }
+    else if (cur.p == 3) {
+        station = pickNearestStation(dist, 1, 2, h1_vehcl, h2_vehcl);
+    }
+    else if (cur.p == 2) {
+        station = pickNearestStation(dist, 5, 6, f1_vehcl, f2_vehcl);
+    }
+    else if (cur.p == 1) {
+        station = pickNearestStation(dist, 3, 4, p1_vehcl, p2_vehcl);
+    }
+
+    // no vehicle available
+    if (station == -1) {
+        printf("No vehicle available! Adding incident back into heap.\n");
+        heapPush(cur);
+        return;
+    }
+
+    // dispatch
+    if (station == 1) { h1_vehcl = 0; printf("Ambulance sent from H1\n"); }
+    else if (station == 2) { h2_vehcl = 0; printf("Ambulance sent from H2\n"); }
+    else if (station == 3) { p1_vehcl = 0; printf("Police sent from P1\n"); }
+    else if (station == 4) { p2_vehcl = 0; printf("Police sent from P2\n"); }
+    else if (station == 5) { f1_vehcl = 0; printf("Fire truck sent from F1\n"); }
+    else if (station == 6) { f2_vehcl = 0; printf("Fire truck sent from F2\n"); }
+
+    printf("Incident handled\n");
+}
+
+// return vehicle
+void returnVehcl() {
+    printf("\nVehcl status list:\n");
+    printf("1. H1 : %d\n", h1_vehcl);
+    printf("2. H2 : %d\n", h2_vehcl);
+    printf("3. P1 : %d\n", p1_vehcl);
+    printf("4. P2 : %d\n", p2_vehcl);
+    printf("5. F1 : %d\n", f1_vehcl);
+    printf("6. F2 : %d\n", f2_vehcl);
+
+    int idx;
+    printf("Enter index to mark available: ");
+    scanf("%d", &idx);
+
+    if (idx == 1) h1_vehcl = 1;
+    else if (idx == 2) h2_vehcl = 1;
+    else if (idx == 3) p1_vehcl = 1;
+    else if (idx == 4) p2_vehcl = 1;
+    else if (idx == 5) f1_vehcl = 1;
+    else if (idx == 6) f2_vehcl = 1;
+    else printf("Invalid\n");
+
+    printf("Vehicle returned\n");
+}
+
+// check vehicles
+void checkVehcl() {
+    printf("\nVehcl availability:\n");
+    printf("H1:%d H2:%d P1:%d P2:%d F1:%d F2:%d\n",
+           h1_vehcl, h2_vehcl, p1_vehcl, p2_vehcl, f1_vehcl, f2_vehcl);
+}
+
+int main() {
+    initGraph();
+    int op = 0;
+    while (1) {
+        printf("\n--- MENU ---\n");
+        printf("1. Print nodes\n");
+        printf("2. Print graph\n");
+        printf("3. Display distances\n");
+        printf("4. Add incident\n");
+        printf("5. Show incidents\n");
+        printf("6. Process next incident\n");
+        printf("7. Return vehicle\n");
+        printf("8. Check vehicles\n");
+        printf("9. Exit\n");
+        printf("Enter choice: ");
+
+        if (scanf("%d", &op) != 1) return 0;
+
+        if (op == 1) printNodes();
+        else if (op == 2) printGraph();
+        else if (op == 3) displayDistances();
+        else if (op == 4) addIncident();
+        else if (op == 5) showIncidents();
+        else if (op == 6) processIncident();
+        else if (op == 7) returnVehcl();
+        else if (op == 8) checkVehcl();
+        else if (op == 9) break;
+    }
+    return 0;
+}
